@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+        && data.email is string && data.email.size() <= 200
+        && (!('name' in data) || (data.name is string && data.name.size() <= 100))
+        && (!('location' in data) || (data.location is string && data.location.size() <= 100))
+        && (!('farmSize' in data) || (data.farmSize is string && data.farmSize.size() <= 50))
+        && (!('soilType' in data) || (data.soilType is string && data.soilType.size() <= 60))
+        && (!('irrigation' in data) || (data.irrigation is string && data.irrigation.size() <= 60))
+        && (!('season' in data) || (data.season is string && data.season.size() <= 100))
+        && (!('cropTypes' in data) || (data.cropTypes is list && data.cropTypes.size() <= 20))
+        && (!('measurementUnit' in data) || (data.measurementUnit in ['Metric', 'Imperial', 'Traditional']))
+        && (!('farmingGoals' in data) || (data.farmingGoals is list && data.farmingGoals.size() <= 10));
+    }
+
+    // Crop Validation
+    function isValidCrop(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.type is string && data.type.size() <= 50
+        && data.health is number && data.health >= 0 && data.health <= 100
+        && (!('healthTrend' in data) || (data.healthTrend is string && data.healthTrend.size() <= 20))
+        && (!('risk' in data) || (data.risk is string && data.risk.size() <= 20))
+        && (!('lastActivity' in data) || (data.lastActivity is string && data.lastActivity.size() <= 500))
+        && (!('growthStage' in data) || (data.growthStage is string && data.growthStage.size() <= 100))
+        && (!('stageProgress' in data) || (data.stageProgress is number && data.stageProgress >= 0 && data.stageProgress <= 100))
+        && (!('diseasePrediction' in data) || (data.diseasePrediction is string && data.diseasePrediction.size() <= 1000))
+        && (!('diseaseCauses' in data) || (data.diseaseCauses is string && data.diseaseCauses.size() <= 1000))
+        && (!('preventativeMeasures' in data) || (data.preventativeMeasures is list && data.preventativeMeasures.size() <= 20))
+        && (!('recommendedActions' in data) || (data.recommendedActions is list && data.recommendedActions.size() <= 20))
+        && (!('healthyImage' in data) || (data.healthyImage is string && data.healthyImage.size() <= 1000))
+        && (!('environmentalRisk' in data) || (data.environmentalRisk is map && data.environmentalRisk.size() <= 10))
+        && (!('symptoms' in data) || (data.symptoms is list && data.symptoms.size() <= 20))
+        && (!('treatmentSteps' in data) || (data.treatmentSteps is list && data.treatmentSteps.size() <= 20))
+        && (!('expectedRecovery' in data) || (data.expectedRecovery is string && data.expectedRecovery.size() <= 500));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'location', 'farmSize', 'soilType', 'irrigation', 'season', 'cropTypes', 'measurementUnit', 'farmingGoals']);
+
+      match /crops/{cropId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(cropId) && isValidCrop(incoming());
+        allow update: if isOwner(userId) && isValidCrop(incoming())
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'health', 'healthTrend', 'risk', 'lastActivity', 'growthStage', 'stageProgress',
+            'diseasePrediction', 'diseaseCauses', 'preventativeMeasures', 'recommendedActions',
+            'healthyImage', 'environmentalRisk', 'symptoms', 'treatmentSteps', 'expectedRecovery'
+          ]);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

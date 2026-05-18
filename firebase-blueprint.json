@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and farm information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "location": { "type": "string" },
+        "farmSize": { "type": "string" },
+        "soilType": { "type": "string" },
+        "irrigation": { "type": "string" },
+        "season": { "type": "string" },
+        "cropTypes": { "type": "array", "items": { "type": "string" } },
+        "measurementUnit": { "type": "string", "enum": ["Metric", "Imperial", "Traditional"] },
+        "farmingGoals": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "email"]
+    },
+    "Crop": {
+      "title": "Crop",
+      "description": "Data for a specific plantation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "health": { "type": "number" },
+        "healthTrend": { "type": "string" },
+        "risk": { "type": "string" },
+        "lastActivity": { "type": "string" },
+        "growthStage": { "type": "string" },
+        "stageProgress": { "type": "number" },
+        "diseasePrediction": { "type": "string" },
+        "diseaseCauses": { "type": "string" },
+        "preventativeMeasures": { "type": "array" },
+        "recommendedActions": { "type": "array" },
+        "healthyImage": { "type": "string" },
+        "environmentalRisk": { "type": "object" },
+        "symptoms": { "type": "array", "items": { "type": "string" } },
+        "treatmentSteps": { 
+          "type": "array", 
+          "items": { 
+            "type": "object", 
+            "properties": {
+              "step": { "type": "string" },
+              "dosage": { "type": "string" }
+            }
+          }
+        },
+        "expectedRecovery": { "type": "string" }
+      },
+      "required": ["id", "type", "health"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "The private user profile document"
+    },
+    "/users/{userId}/crops/{cropId}": {
+      "schema": "Crop",
+      "description": "Individual crop records for a user"
+    }
+  }
+}
